@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
@@ -42,7 +44,7 @@ type JWKSVerifier struct {
 	jwksURL string
 
 	mu        sync.RWMutex
-	keys      map[string]*rsa.PublicKey
+	keys      map[string]any
 	lastFetch time.Time
 
 	httpClient *http.Client
@@ -51,7 +53,7 @@ type JWKSVerifier struct {
 func NewJWKSVerifier(jwksURL string) *JWKSVerifier {
 	return &JWKSVerifier{
 		jwksURL: jwksURL,
-		keys:    map[string]*rsa.PublicKey{},
+		keys:    map[string]any{},
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -94,9 +96,9 @@ func (v *JWKSVerifier) keyFunc(token *jwt.Token) (any, error) {
 	}
 
 	v.mu.RLock()
-	k := v.keys[kid]
+	k, ok := v.keys[kid]
 	v.mu.RUnlock()
-	if k == nil {
+	if !ok || k == nil {
 		return nil, fmt.Errorf("unknown kid")
 	}
 
@@ -112,8 +114,15 @@ type jwk struct {
 	Kid string `json:"kid"`
 	Alg string `json:"alg"`
 	Use string `json:"use"`
-	N   string `json:"n"`
-	E   string `json:"e"`
+
+	// RSA
+	N string `json:"n"`
+	E string `json:"e"`
+
+	// EC
+	Crv string `json:"crv"`
+	X   string `json:"x"`
+	Y   string `json:"y"`
 }
 
 func (v *JWKSVerifier) refresh() error {
@@ -140,16 +149,33 @@ func (v *JWKSVerifier) refresh() error {
 		return err
 	}
 
-	keys := make(map[string]*rsa.PublicKey, len(p.Keys))
+	keys := make(map[string]any, len(p.Keys))
 	for _, k := range p.Keys {
-		if k.Kid == "" || k.Kty != "RSA" || k.N == "" || k.E == "" {
+		if k.Kid == "" {
 			continue
 		}
-		pub, err := jwkToRSAPublicKey(k.N, k.E)
-		if err != nil {
-			continue
+
+		switch k.Kty {
+		case "RSA":
+			if k.N == "" || k.E == "" {
+				continue
+			}
+			pub, err := jwkToRSAPublicKey(k.N, k.E)
+			if err != nil {
+				continue
+			}
+			keys[k.Kid] = pub
+		case "EC":
+			// Supabase currently publishes ES256 (P-256).
+			if k.Crv != "P-256" || k.X == "" || k.Y == "" {
+				continue
+			}
+			pub, err := jwkToECPublicKey(k.X, k.Y)
+			if err != nil {
+				continue
+			}
+			keys[k.Kid] = pub
 		}
-		keys[k.Kid] = pub
 	}
 
 	v.mu.Lock()
@@ -180,4 +206,25 @@ func jwkToRSAPublicKey(nB64, eB64 string) (*rsa.PublicKey, error) {
 	}
 
 	return &rsa.PublicKey{N: n, E: e}, nil
+}
+
+func jwkToECPublicKey(xB64, yB64 string) (*ecdsa.PublicKey, error) {
+	xBytes, err := base64.RawURLEncoding.DecodeString(xB64)
+	if err != nil {
+		return nil, err
+	}
+	yBytes, err := base64.RawURLEncoding.DecodeString(yB64)
+	if err != nil {
+		return nil, err
+	}
+
+	x := new(big.Int).SetBytes(xBytes)
+	y := new(big.Int).SetBytes(yBytes)
+
+	curve := elliptic.P256()
+	if !curve.IsOnCurve(x, y) {
+		return nil, fmt.Errorf("point not on curve")
+	}
+
+	return &ecdsa.PublicKey{Curve: curve, X: x, Y: y}, nil
 }

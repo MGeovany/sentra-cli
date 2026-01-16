@@ -10,6 +10,7 @@ import (
 type AccessTokenClaims struct {
 	Sub   string `json:"sub"`
 	Email string `json:"email,omitempty"`
+	Exp   int64  `json:"exp,omitempty"`
 }
 
 func ParseAccessTokenClaims(jwtToken string) (AccessTokenClaims, error) {

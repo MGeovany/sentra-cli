@@ -6,10 +6,12 @@ import (
 	"net/http"
 
 	"github.com/mgeovany/sentra/server/internal/auth"
+	"github.com/mgeovany/sentra/server/internal/repo"
 )
 
 type Deps struct {
-	Auth auth.Middleware
+	Auth     auth.Middleware
+	Machines repo.MachineStore
 }
 
 func New(deps Deps) http.Handler {
@@ -26,6 +28,8 @@ func New(deps Deps) http.Handler {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(user)
 	})))
+
+	mux.Handle("/machines/register", deps.Auth.Require(registerMachineHandler(deps.Machines)))
 
 	return mux
 }

@@ -6,11 +6,11 @@ Sentra is a developer-first CLI for scanning, staging and pushing `.env*` files.
 
 ### `sentra login`
 
-Starts a browser-based login using Supabase Auth (GitHub provider) via PKCE.
+Starts a browser-based login flow.
 
-- Prints a URL
+- Prints a login URL
 - Waits for the callback
-- Saves session + config to `~/.sentra/`
+- Persists local session and machine identity
 
 Usage:
 
@@ -62,7 +62,7 @@ Usage:
 Pushes local commits to the remote.
 
 - If there is no local session, it triggers `sentra login` automatically.
-- Ensures the current `machine_id` is registered in the remote DB via `SENTRA_SERVER_URL`.
+- Ensures the current machine identity is registered remotely.
 
 Usage:
 

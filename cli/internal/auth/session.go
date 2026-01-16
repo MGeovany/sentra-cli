@@ -18,6 +18,30 @@ type Session struct {
 	SavedAt time.Time `json:"saved_at"`
 }
 
+func (s Session) ExpiresAt() time.Time {
+	// Prefer JWT exp if available.
+	if c, err := ParseAccessTokenClaims(s.AccessToken); err == nil && c.Exp > 0 {
+		return time.Unix(c.Exp, 0).UTC()
+	}
+
+	if !s.SavedAt.IsZero() && s.ExpiresIn > 0 {
+		return s.SavedAt.Add(time.Duration(s.ExpiresIn) * time.Second)
+	}
+
+	return time.Time{}
+}
+
+func (s Session) NeedsRefresh(now time.Time) bool {
+	exp := s.ExpiresAt()
+	if exp.IsZero() {
+		// Unknown expiry; don't force refresh.
+		return false
+	}
+
+	// Refresh a bit early.
+	return now.After(exp.Add(-60 * time.Second))
+}
+
 func sessionPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {

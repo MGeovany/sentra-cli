@@ -12,6 +12,8 @@ import (
 	"github.com/mgeovany/sentra/server/internal/auth"
 	"github.com/mgeovany/sentra/server/internal/config"
 	"github.com/mgeovany/sentra/server/internal/httpapi"
+	"github.com/mgeovany/sentra/server/internal/repo"
+	"github.com/mgeovany/sentra/server/internal/supabase"
 )
 
 func main() {
@@ -30,7 +32,18 @@ func main() {
 
 	middleware := auth.NewMiddleware(verifier)
 
-	h := httpapi.New(httpapi.Deps{Auth: middleware})
+	var machines repo.MachineStore = repo.DisabledMachineStore{}
+	if cfg.SupabaseURL != "" && cfg.SupabaseServiceRoleKey != "" {
+		client, err := supabase.New(cfg.SupabaseURL, cfg.SupabaseServiceRoleKey)
+		if err != nil {
+			log.Printf("supabase db disabled (check SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)")
+		} else {
+			machines = repo.NewSupabaseMachineStore(client, cfg.SupabaseMachinesTable)
+			log.Printf("supabase db configured")
+		}
+	}
+
+	h := httpapi.New(httpapi.Deps{Auth: middleware, Machines: machines})
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

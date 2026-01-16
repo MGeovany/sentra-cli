@@ -23,7 +23,6 @@ func runLogin() error {
 	if supabaseURL == "" || anonKey == "" {
 		return errors.New("missing SUPABASE_URL or SUPABASE_ANON_KEY")
 	}
-	supabaseBase := strings.TrimRight(strings.TrimSpace(supabaseURL), "/")
 
 	verifier, err := auth.NewCodeVerifier()
 	if err != nil {
@@ -49,12 +48,6 @@ func runLogin() error {
 
 	redirectTo := fmt.Sprintf("http://127.0.0.1:%d/callback", port)
 
-	fmt.Println("Add this Redirect URL in Supabase (Authentication → URL Configuration → Redirect URLs):")
-	fmt.Println(redirectTo)
-	fmt.Println()
-	fmt.Println("Ensure your GitHub OAuth App 'Authorization callback URL' is set to the Supabase callback (not localhost):")
-	fmt.Println(supabaseBase + "/auth/v1/callback")
-	fmt.Println()
 	oauth := auth.SupabaseOAuth{SupabaseURL: supabaseURL, AnonKey: anonKey, Provider: "github"}
 	authURL, err := oauth.AuthorizeURL(redirectTo, challenge)
 	if err != nil {
@@ -157,6 +150,16 @@ func runLogin() error {
 		_ = auth.SetUserID(claims.Sub)
 	}
 
-	fmt.Println("✔ logged in")
+	// Best-effort: register machine with the server if reachable.
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := registerMachine(ctx, tr.AccessToken); err != nil {
+			fmt.Printf("Warning: could not register user/machine with remote: %v\n", err)
+			fmt.Println("Hint: check SENTRA_SERVER_URL and ensure the server has SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.")
+		}
+	}
+
+	fmt.Println("logged in")
 	return nil
 }
