@@ -1,9 +1,8 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -62,11 +61,24 @@ jobs:
         working-directory: cli
         run: go build ./cmd/sentra
 
+      - name: Format (gofmt check)
+        working-directory: cli
+        run: |
+          files="$(git ls-files '*.go')"
+          [ -z "$files" ] && exit 0
+          out="$(gofmt -l $files)"
+          if [ -n "$out" ]; then
+            echo "$out"
+            echo "gofmt needed (run: make fmt)"
+            exit 1
+          fi
+
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
           working-directory: cli
+          install-mode: goinstall
 
       - name: Test
         working-directory: cli
@@ -93,11 +105,24 @@ jobs:
         working-directory: server
         run: go build ./...
 
+      - name: Format (gofmt check)
+        working-directory: server
+        run: |
+          files="$(git ls-files '*.go')"
+          [ -z "$files" ] && exit 0
+          out="$(gofmt -l $files)"
+          if [ -n "$out" ]; then
+            echo "$out"
+            echo "gofmt needed (run: make fmt)"
+            exit 1
+          fi
+
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
           working-directory: server
+          install-mode: goinstall
 
       - name: Test
         working-directory: server

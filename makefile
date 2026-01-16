@@ -62,7 +62,7 @@ build:
 		echo "==> web: no package.json yet; skipping"; \
 	fi
 
-run-cli:
+sentra:
 	@cd cli && go run ./cmd/sentra $(ARGS)
 
 run-server:
