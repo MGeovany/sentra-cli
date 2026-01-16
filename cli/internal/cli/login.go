@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mgeovany/sentra/cli/internal/auth"
@@ -30,7 +31,8 @@ func runLogin() error {
 	}
 	challenge := auth.CodeChallengeS256(verifier)
 
-	port := 53124
+	// Use a random loopback port by default to reduce spoof/race attempts.
+	port := 0
 	if v := strings.TrimSpace(os.Getenv("SENTRA_AUTH_PORT")); v != "" {
 		p, err := strconv.Atoi(v)
 		if err != nil {
@@ -46,7 +48,26 @@ func runLogin() error {
 	}
 	defer ln.Close()
 
-	redirectTo := fmt.Sprintf("http://127.0.0.1:%d/callback", port)
+	// Resolve the actual port (important when using 0).
+	tcpAddr, ok := ln.Addr().(*net.TCPAddr)
+	if !ok || tcpAddr == nil || tcpAddr.Port == 0 {
+		return fmt.Errorf("cannot resolve listener port")
+	}
+
+	nonce, err := auth.NewState()
+	if err != nil {
+		return err
+	}
+
+	redirectToURL := &url.URL{
+		Scheme: "http",
+		Host:   fmt.Sprintf("127.0.0.1:%d", tcpAddr.Port),
+		Path:   "/callback",
+	}
+	qRedirect := redirectToURL.Query()
+	qRedirect.Set("sentra_state", nonce)
+	redirectToURL.RawQuery = qRedirect.Encode()
+	redirectTo := redirectToURL.String()
 
 	oauth := auth.SupabaseOAuth{SupabaseURL: supabaseURL, AnonKey: anonKey, Provider: "github"}
 	authURL, err := oauth.AuthorizeURL(redirectTo, challenge)
@@ -61,13 +82,35 @@ func runLogin() error {
 
 	codeCh := make(chan string, 1)
 	errCh := make(chan error, 1)
+	var cbOnce sync.Once
 
+	srv := &http.Server{}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 
-		// NOTE: Supabase manages OAuth `state` internally and expects it to be in
-		// a specific format. We do not supply our own `state`.
+		// Hardening: validate a CLI-generated nonce embedded in redirect_to.
+		if got := q.Get("sentra_state"); got == "" || got != nonce {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			_, _ = w.Write([]byte("Login failed: invalid callback state.\n"))
+			select {
+			case errCh <- errors.New("invalid callback state"):
+			default:
+			}
+			return
+		}
+
+		// Only accept the first valid callback to reduce spoofing/races.
+		handled := false
+		cbOnce.Do(func() { handled = true })
+		if !handled {
+			w.WriteHeader(http.StatusConflict)
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			_, _ = w.Write([]byte("Callback already handled. You can close this tab."))
+			return
+		}
+
 		code := q.Get("code")
 		if code == "" {
 			// Some setups return errors in query string.
@@ -83,10 +126,16 @@ func runLogin() error {
 					errCode,
 					errDesc,
 				)))
-				errCh <- fmt.Errorf("oauth error: %s (%s) %s", errName, errCode, errDesc)
+				select {
+				case errCh <- fmt.Errorf("oauth error: %s (%s) %s", errName, errCode, errDesc):
+				default:
+				}
 			} else {
 				_, _ = w.Write([]byte("Login failed: missing oauth code.\n"))
-				errCh <- errors.New("missing oauth code")
+				select {
+				case errCh <- errors.New("missing oauth code"):
+				default:
+				}
 			}
 			return
 		}
@@ -94,13 +143,23 @@ func runLogin() error {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("Login successful. You can close this tab and return to the CLI."))
-		codeCh <- code
+		select {
+		case codeCh <- code:
+		default:
+		}
+
+		// Close the listener immediately after the first successful callback.
+		// Do it asynchronously to avoid blocking the handler while writing.
+		go func() { _ = srv.Shutdown(context.Background()) }()
 	})
 
-	srv := &http.Server{Handler: mux}
+	srv.Handler = mux
 	go func() {
 		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errCh <- err
+			select {
+			case errCh <- err:
+			default:
+			}
 		}
 	}()
 
