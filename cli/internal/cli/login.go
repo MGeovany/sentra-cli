@@ -47,7 +47,7 @@ func runLogin() error {
 	}
 	defer ln.Close()
 
-	redirectTo := fmt.Sprintf("http://localhost:%d/callback", port)
+	redirectTo := fmt.Sprintf("http://127.0.0.1:%d/callback", port)
 
 	fmt.Println("Add this Redirect URL in Supabase (Authentication → URL Configuration → Redirect URLs):")
 	fmt.Println(redirectTo)

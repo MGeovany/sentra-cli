@@ -12,7 +12,7 @@ Set these env vars before logging in (in `.env` at repo root is fine):
 Also, Supabase requires allowlisting redirect URLs.
 Add this to your Supabase Dashboard → Auth → URL Configuration → Additional Redirect URLs:
 
-- `http://localhost:53124/callback`
+- `http://127.0.0.1:53124/callback`
 
 If the port is taken, set `SENTRA_AUTH_PORT` and allowlist the matching URL.
 
