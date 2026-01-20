@@ -51,6 +51,10 @@ func sessionPath() (string, error) {
 }
 
 func SaveSession(s Session) error {
+	return saveSession(s, false)
+}
+
+func saveSession(s Session, preserveSavedAt bool) error {
 	p, err := sessionPath()
 	if err != nil {
 		return err
@@ -60,7 +64,12 @@ func SaveSession(s Session) error {
 		return err
 	}
 
-	s.SavedAt = time.Now().UTC()
+	// SavedAt is used as an expiry fallback when the access token has no usable exp.
+	// During migration we preserve an existing SavedAt to avoid widening the refresh window.
+	if !preserveSavedAt || s.SavedAt.IsZero() {
+		s.SavedAt = time.Now().UTC()
+	}
+
 	plain, err := json.Marshal(s)
 	if err != nil {
 		return err
@@ -114,7 +123,9 @@ func LoadSession() (Session, bool, error) {
 	}
 
 	// Best-effort migration to encrypted format (ignore errors to avoid breaking existing installs).
-	_ = SaveSession(s)
+	// Preserve the original SavedAt so we don't extend token freshness for legacy sessions
+	// that lack a usable JWT exp claim.
+	_ = saveSession(s, true)
 
 	return s, true, nil
 }
