@@ -51,6 +51,16 @@ func sessionPath() (string, error) {
 }
 
 func SaveSession(s Session) error {
+	// Prefer storing the full session in the OS credential store (Keychain/Secret Service/CredMan).
+	// This avoids leaving usable tokens on disk.
+	if err := saveSessionKeyring(s, false); err == nil {
+		// Best-effort cleanup of legacy/on-disk session material.
+		_ = removeLegacySessionFiles()
+		return nil
+	} else if !allowInsecureSessionFile() {
+		return fmt.Errorf("secure session store unavailable (keychain/credential manager): %w", err)
+	}
+
 	return saveSession(s, false)
 }
 
@@ -87,6 +97,17 @@ func saveSession(s Session, preserveSavedAt bool) error {
 }
 
 func LoadSession() (Session, bool, error) {
+	// 1) Prefer OS credential store.
+	if s, ok, err := loadSessionKeyring(); err != nil {
+		return Session{}, false, err
+	} else if ok {
+		if s.AccessToken == "" {
+			return Session{}, false, nil
+		}
+		return s, true, nil
+	}
+
+	// 2) Backward-compatible file fallback (optional).
 	p, err := sessionPath()
 	if err != nil {
 		return Session{}, false, err
@@ -110,10 +131,16 @@ func LoadSession() (Session, bool, error) {
 		if s.AccessToken == "" {
 			return Session{}, false, nil
 		}
+
+		// Try to migrate into the OS keychain; if that succeeds, remove on-disk material.
+		if err := saveSessionKeyring(s, true); err == nil {
+			_ = removeLegacySessionFiles()
+		}
+
 		return s, true, nil
 	}
 
-	// Legacy plaintext session.json: load and migrate to encrypted on next save.
+	// Legacy plaintext session.json: load and migrate.
 	var s Session
 	if err := json.Unmarshal(b, &s); err != nil {
 		return Session{}, false, fmt.Errorf("invalid session file: %w", err)
@@ -126,6 +153,11 @@ func LoadSession() (Session, bool, error) {
 	// Preserve the original SavedAt so we don't extend token freshness for legacy sessions
 	// that lack a usable JWT exp claim.
 	_ = saveSession(s, true)
+
+	// Attempt to migrate into the OS keychain as well.
+	if err := saveSessionKeyring(s, true); err == nil {
+		_ = removeLegacySessionFiles()
+	}
 
 	return s, true, nil
 }
