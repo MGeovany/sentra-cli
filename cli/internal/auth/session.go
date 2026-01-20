@@ -51,6 +51,10 @@ func sessionPath() (string, error) {
 }
 
 func SaveSession(s Session) error {
+	return saveSession(s, false)
+}
+
+func saveSession(s Session, preserveSavedAt bool) error {
 	p, err := sessionPath()
 	if err != nil {
 		return err
@@ -60,13 +64,23 @@ func SaveSession(s Session) error {
 		return err
 	}
 
-	s.SavedAt = time.Now().UTC()
-	b, err := json.MarshalIndent(s, "", "  ")
+	// SavedAt is used as an expiry fallback when the access token has no usable exp.
+	// During migration we preserve an existing SavedAt to avoid widening the refresh window.
+	if !preserveSavedAt || s.SavedAt.IsZero() {
+		s.SavedAt = time.Now().UTC()
+	}
+
+	plain, err := json.Marshal(s)
 	if err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(p, b, 0o600); err != nil {
+	enc, err := encryptSessionJSON(plain)
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(p, enc, 0o600); err != nil {
 		return err
 	}
 	return nil
@@ -86,6 +100,20 @@ func LoadSession() (Session, bool, error) {
 		return Session{}, false, err
 	}
 
+	if plain, ok, err := decryptSessionJSON(b); err != nil {
+		return Session{}, false, fmt.Errorf("cannot decrypt session; please login again: %w", err)
+	} else if ok {
+		var s Session
+		if err := json.Unmarshal(plain, &s); err != nil {
+			return Session{}, false, fmt.Errorf("invalid session file: %w", err)
+		}
+		if s.AccessToken == "" {
+			return Session{}, false, nil
+		}
+		return s, true, nil
+	}
+
+	// Legacy plaintext session.json: load and migrate to encrypted on next save.
 	var s Session
 	if err := json.Unmarshal(b, &s); err != nil {
 		return Session{}, false, fmt.Errorf("invalid session file: %w", err)
@@ -93,6 +121,11 @@ func LoadSession() (Session, bool, error) {
 	if s.AccessToken == "" {
 		return Session{}, false, nil
 	}
+
+	// Best-effort migration to encrypted format (ignore errors to avoid breaking existing installs).
+	// Preserve the original SavedAt so we don't extend token freshness for legacy sessions
+	// that lack a usable JWT exp claim.
+	_ = saveSession(s, true)
 
 	return s, true, nil
 }
