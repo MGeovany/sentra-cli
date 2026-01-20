@@ -16,8 +16,10 @@ import (
 )
 
 type registerMachineRequest struct {
-	MachineID   string `json:"machine_id"`
-	MachineName string `json:"machine_name"`
+	MachineID     string `json:"machine_id"`
+	MachineName   string `json:"machine_name"`
+	DevicePubKey  string `json:"device_pub_key"`
+	DeviceKeyType string `json:"device_key_type"`
 }
 
 func registerMachine(ctx context.Context, accessToken string) error {
@@ -48,9 +50,16 @@ func registerMachine(ctx context.Context, accessToken string) error {
 
 	endpoint := serverURL + "/machines/register"
 
+	pub, err := auth.GetOrCreateDevicePublicKey()
+	if err != nil {
+		return err
+	}
+
 	payload := registerMachineRequest{
-		MachineID:   cfg.MachineID,
-		MachineName: name,
+		MachineID:     cfg.MachineID,
+		MachineName:   name,
+		DevicePubKey:  pub,
+		DeviceKeyType: "ed25519",
 	}
 	b, err := json.Marshal(payload)
 	if err != nil {
@@ -64,6 +73,16 @@ func registerMachine(ctx context.Context, accessToken string) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/plain")
 	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(accessToken))
+
+	// Device binding: sign this request with the device key.
+	ts := fmt.Sprintf("%d", time.Now().UTC().Unix())
+	sig, err := auth.SignDeviceRequest(cfg.MachineID, ts, http.MethodPost, "/machines/register", b)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("X-Sentra-Machine-ID", cfg.MachineID)
+	req.Header.Set("X-Sentra-Timestamp", ts)
+	req.Header.Set("X-Sentra-Signature", sig)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)

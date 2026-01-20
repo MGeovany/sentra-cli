@@ -18,6 +18,14 @@ type Client struct {
 	apiKey     string
 }
 
+func (c *Client) APIKey() string {
+	return c.apiKey
+}
+
+func (c *Client) Do(req *http.Request) (*http.Response, error) {
+	return c.httpClient.Do(req)
+}
+
 func New(baseURL, apiKey string) (*Client, error) {
 	baseURL = strings.TrimSpace(baseURL)
 	apiKey = strings.TrimSpace(apiKey)
