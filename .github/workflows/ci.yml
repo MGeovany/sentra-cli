@@ -78,7 +78,7 @@ jobs:
         with:
           version: v2.8.0
           working-directory: cli
-          install-mode: goinstall
+          install-mode: binary
 
       - name: Test
         working-directory: cli
@@ -122,7 +122,7 @@ jobs:
         with:
           version: v2.8.0
           working-directory: server
-          install-mode: goinstall
+          install-mode: binary
 
       - name: Test
         working-directory: server
