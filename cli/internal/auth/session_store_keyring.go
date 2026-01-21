@@ -63,13 +63,3 @@ func saveSessionKeyring(s Session, preserveSavedAt bool) error {
 	}
 	return keyring.Set(keyringService, keyringSessionUser, string(b))
 }
-
-func removeSessionKeyring() error {
-	if err := keyring.Delete(keyringService, keyringSessionUser); err != nil {
-		if errors.Is(err, keyring.ErrNotFound) {
-			return nil
-		}
-		return err
-	}
-	return nil
-}
