@@ -76,7 +76,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v2.0.0
+          version: v1.61.0
           working-directory: cli
           install-mode: goinstall
 
@@ -120,7 +120,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v2.0.0
+          version: v1.61.0
           working-directory: server
           install-mode: goinstall
 
