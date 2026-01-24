@@ -32,17 +32,19 @@ func main() {
 	middleware := auth.NewMiddleware(verifier)
 
 	var machines repo.MachineStore = repo.DisabledMachineStore{}
+	var push repo.PushStore = repo.DisabledPushStore{}
 	if cfg.SupabaseURL != "" && cfg.SupabaseServiceRoleKey != "" {
 		client, err := supabase.New(cfg.SupabaseURL, cfg.SupabaseServiceRoleKey)
 		if err != nil {
 			log.Printf("supabase db disabled (check SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)")
 		} else {
 			machines = repo.NewSupabaseMachineStore(client, cfg.SupabaseMachinesTable)
+			push = repo.NewSupabasePushStore(client, "")
 			log.Printf("supabase db configured")
 		}
 	}
 
-	h := httpapi.New(httpapi.Deps{Auth: middleware, Machines: machines})
+	h := httpapi.New(httpapi.Deps{Auth: middleware, Machines: machines, Push: push})
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

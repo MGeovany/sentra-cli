@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Commit struct {
@@ -28,7 +30,7 @@ func Dir() (string, error) {
 
 func New(message string, files map[string]string) Commit {
 	now := time.Now().UTC()
-	id := now.Format("2006-01-02T15-04-05")
+	id := uuid.NewString()
 
 	copyFiles := make(map[string]string, len(files))
 	for k, v := range files {

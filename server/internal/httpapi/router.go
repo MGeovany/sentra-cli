@@ -12,6 +12,7 @@ import (
 type Deps struct {
 	Auth     auth.Middleware
 	Machines repo.MachineStore
+	Push     repo.PushStore
 }
 
 func New(deps Deps) http.Handler {
@@ -30,6 +31,7 @@ func New(deps Deps) http.Handler {
 	})))
 
 	mux.Handle("/machines/register", deps.Auth.Require(registerMachineHandler(deps.Machines)))
+	mux.Handle("/push", deps.Auth.Require(requireDeviceSignature(deps.Machines, pushHandler(deps.Push))))
 
 	return mux
 }

@@ -1,15 +1,25 @@
 package cli
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
+	"github.com/mgeovany/sentra/cli/internal/auth"
 	"github.com/mgeovany/sentra/cli/internal/commit"
 )
 
 func runPush() error {
-	if err := ensureRemoteSession(); err != nil {
+	sess, err := ensureRemoteSession()
+	if err != nil {
 		return err
 	}
 
@@ -32,8 +42,78 @@ func runPush() error {
 
 	sort.Slice(pending, func(i, j int) bool { return pending[i].ID < pending[j].ID })
 
+	cfg, err := auth.EnsureConfig()
+	if err != nil {
+		return err
+	}
+	machineID := strings.TrimSpace(cfg.MachineID)
+	if machineID == "" {
+		return fmt.Errorf("missing machine_id")
+	}
+
+	name, _ := os.Hostname()
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = "unknown"
+	}
+
+	serverPort := strings.TrimSpace(os.Getenv("SERVER_PORT"))
+	if serverPort == "" {
+		serverPort = "8080"
+	}
+	serverURL := "http://localhost:" + serverPort
+	endpoint := serverURL + "/push"
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	scanRoot := filepath.Join(homeDir, "dev")
+
+	client := &http.Client{Timeout: 20 * time.Second}
+
 	now := time.Now().UTC().Format(time.RFC3339)
 	for _, c := range pending {
+		reqs, err := buildPushRequestV1(scanRoot, machineID, name, c)
+		if err != nil {
+			return err
+		}
+
+		for _, reqBody := range reqs {
+			b, err := json.Marshal(reqBody)
+			if err != nil {
+				return err
+			}
+
+			hreq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(b))
+			if err != nil {
+				return err
+			}
+			hreq.Header.Set("Content-Type", "application/json")
+			hreq.Header.Set("Accept", "application/json")
+			hreq.Header.Set("Authorization", "Bearer "+strings.TrimSpace(sess.AccessToken))
+
+			ts := fmt.Sprintf("%d", time.Now().UTC().Unix())
+			sig, err := auth.SignDeviceRequest(machineID, ts, http.MethodPost, "/push", b)
+			if err != nil {
+				return err
+			}
+			hreq.Header.Set("X-Sentra-Machine-ID", machineID)
+			hreq.Header.Set("X-Sentra-Timestamp", ts)
+			hreq.Header.Set("X-Sentra-Signature", sig)
+
+			resp, err := client.Do(hreq)
+			if err != nil {
+				return err
+			}
+			respBody, _ := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+
+			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+				return fmt.Errorf("push failed: status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+			}
+		}
+
 		c.PushedAt = now
 		if err := commit.Update(c); err != nil {
 			return err

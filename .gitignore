@@ -1,3 +1,6 @@
 .env
 cli/.env
 server/.env
+.DS_Store
+server/*.sql
+server/sentra-db.sql

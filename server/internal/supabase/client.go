@@ -57,6 +57,13 @@ func (c *Client) PostgRESTURL(path string) string {
 	return u.String()
 }
 
+func (c *Client) RPCURL(fn string) string {
+	// e.g. https://xxxx.supabase.co/rest/v1/rpc/<fn>
+	u := *c.baseURL
+	u.Path = strings.TrimSuffix(u.Path, "/") + "/rest/v1/rpc/" + strings.TrimPrefix(fn, "/")
+	return u.String()
+}
+
 func (c *Client) PostJSON(ctx context.Context, url string, body any, headers map[string]string) (*http.Response, []byte, error) {
 	b, err := json.Marshal(body)
 	if err != nil {
