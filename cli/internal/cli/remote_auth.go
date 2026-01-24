@@ -11,13 +11,13 @@ import (
 	"github.com/mgeovany/sentra/cli/internal/auth"
 )
 
-func ensureRemoteSession() error {
+func ensureRemoteSession() (auth.Session, error) {
 	auth.LoadDotEnv()
 
 	supabaseURL := strings.TrimSpace(os.Getenv("SUPABASE_URL"))
 	anonKey := strings.TrimSpace(os.Getenv("SUPABASE_ANON_KEY"))
 	if supabaseURL == "" || anonKey == "" {
-		return errors.New("missing SUPABASE_URL or SUPABASE_ANON_KEY")
+		return auth.Session{}, errors.New("missing SUPABASE_URL or SUPABASE_ANON_KEY")
 	}
 
 	oauth := auth.SupabaseOAuth{SupabaseURL: supabaseURL, AnonKey: anonKey, Provider: "github"}
@@ -35,18 +35,25 @@ func ensureRemoteSession() error {
 		regCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := registerMachine(regCtx, s.AccessToken); err != nil {
-			return fmt.Errorf("could not register user/machine with remote: %w", err)
+			return auth.Session{}, fmt.Errorf("could not register user/machine with remote: %w", err)
 		}
 
-		return nil
+		return s, nil
 	}
 
 	if errors.Is(err, auth.ErrNoSession) {
 		fmt.Println("please login to push changes to remote")
-		return runLogin()
+		if loginErr := runLogin(); loginErr != nil {
+			return auth.Session{}, loginErr
+		}
+		// After interactive login, load the session again.
+		return auth.EnsureSession(ctx, oauth)
 	}
 
 	// If refresh failed for any reason, ask user to login again.
 	fmt.Println("session expired; please login again")
-	return runLogin()
+	if loginErr := runLogin(); loginErr != nil {
+		return auth.Session{}, loginErr
+	}
+	return auth.EnsureSession(ctx, oauth)
 }
