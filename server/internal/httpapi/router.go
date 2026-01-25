@@ -12,6 +12,7 @@ import (
 type Deps struct {
 	Auth     auth.Middleware
 	Machines repo.MachineStore
+	Projects repo.ProjectStore
 	Push     repo.PushStore
 }
 
@@ -30,6 +31,7 @@ func New(deps Deps) http.Handler {
 		_ = json.NewEncoder(w).Encode(user)
 	})))
 
+	mux.Handle("/projects", requireLoopback(deps.Auth.Require(projectsHandler(deps.Projects))))
 	mux.Handle("/machines/register", requireLoopback(deps.Auth.Require(registerMachineHandler(deps.Machines))))
 	mux.Handle("/push", requireLoopback(deps.Auth.Require(requirePushRateLimit(requireDeviceSignature(deps.Machines, pushHandler(deps.Push))))))
 
