@@ -37,7 +37,7 @@ func pushHandler(store repo.PushStore) http.Handler {
 			// Keep response minimal, but log the reason for debugging.
 			// Never log secrets: payload is expected to be encrypted blobs.
 			// (Still avoid printing the full body.)
-			log.Printf("push payload rejected err=%v", err)
+			log.Printf("push payload rejected err=%q", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = io.WriteString(w, "invalid push payload")
 			return
@@ -59,7 +59,7 @@ func pushHandler(store repo.PushStore) http.Handler {
 
 		res, err := store.Push(r.Context(), user.ID, payload)
 		if err != nil {
-			log.Printf("push store failed user_id=%s err=%v", user.ID, err)
+			log.Printf("push store failed user_id=%q err=%q", user.ID, err.Error())
 			switch err {
 			case repo.ErrDBNotConfigured:
 				writeHTTPError(w, http.StatusServiceUnavailable, "db not configured", err)
