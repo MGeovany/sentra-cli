@@ -22,6 +22,8 @@ func Execute(args []string) error {
 			return errors.New("sentra login does not accept flags/args yet")
 		}
 		return runLogin()
+	case "files":
+		return runFiles(args[1:])
 	case "commits":
 		return runCommits(args[1:])
 	case "projects":
@@ -65,7 +67,7 @@ func Execute(args []string) error {
 }
 
 func usageError() error {
-	return errors.New("usage: sentra login | sentra projects | sentra commits <project> | sentra who | sentra scan | sentra add | sentra status | sentra commit | sentra log | sentra push")
+	return errors.New("usage: sentra login | sentra projects | sentra commits <project> | sentra files <project> [--at <commit>] | sentra who | sentra scan | sentra add | sentra status | sentra commit | sentra log | sentra push")
 }
 
 func runScan() error {

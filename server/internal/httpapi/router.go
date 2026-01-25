@@ -14,6 +14,7 @@ type Deps struct {
 	Machines repo.MachineStore
 	Projects repo.ProjectStore
 	Commits  repo.CommitStore
+	Files    repo.FileStore
 	Push     repo.PushStore
 }
 
@@ -34,6 +35,7 @@ func New(deps Deps) http.Handler {
 
 	mux.Handle("/projects", requireLoopback(deps.Auth.Require(projectsHandler(deps.Projects))))
 	mux.Handle("/commits", requireLoopback(deps.Auth.Require(commitsHandler(deps.Commits))))
+	mux.Handle("/files", requireLoopback(deps.Auth.Require(filesHandler(deps.Files))))
 	mux.Handle("/machines/register", requireLoopback(deps.Auth.Require(registerMachineHandler(deps.Machines))))
 	mux.Handle("/push", requireLoopback(deps.Auth.Require(requirePushRateLimit(requireDeviceSignature(deps.Machines, pushHandler(deps.Push))))))
 

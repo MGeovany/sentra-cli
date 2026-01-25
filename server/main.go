@@ -35,6 +35,7 @@ func main() {
 	var machines repo.MachineStore = repo.DisabledMachineStore{}
 	var projects repo.ProjectStore = repo.DisabledProjectStore{}
 	var commits repo.CommitStore = repo.DisabledCommitStore{}
+	var files repo.FileStore = repo.DisabledFileStore{}
 	var push repo.PushStore = repo.DisabledPushStore{}
 	if cfg.SupabaseURL != "" && cfg.SupabaseServiceRoleKey != "" {
 		client, err := supabase.New(cfg.SupabaseURL, cfg.SupabaseServiceRoleKey)
@@ -44,12 +45,13 @@ func main() {
 			machines = repo.NewSupabaseMachineStore(client, cfg.SupabaseMachinesTable)
 			projects = repo.NewSupabaseProjectStore(client, "")
 			commits = repo.NewSupabaseCommitStore(client, "")
+			files = repo.NewSupabaseFileStore(client, "")
 			push = repo.NewSupabasePushStore(client, "")
 			log.Printf("supabase db configured")
 		}
 	}
 
-	h := httpapi.New(httpapi.Deps{Auth: middleware, Machines: machines, Projects: projects, Commits: commits, Push: push})
+	h := httpapi.New(httpapi.Deps{Auth: middleware, Machines: machines, Projects: projects, Commits: commits, Files: files, Push: push})
 
 	srv := &http.Server{
 		Addr:              net.JoinHostPort(cfg.Host, cfg.Port),
