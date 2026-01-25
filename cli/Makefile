@@ -37,3 +37,7 @@ login:
 
 who:
 	go run ./cmd/sentra who
+
+projects:
+	go run ./cmd/sentra projects
+
