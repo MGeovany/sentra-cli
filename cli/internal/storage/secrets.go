@@ -67,8 +67,6 @@ func DeleteSecret(ref string) error {
 	return err
 }
 
-// Backward-compat internal aliases.
-var secretRefForID = SecretRefForID
-var saveSecret = SaveSecret
+// Internal aliases for backward compatibility.
 var loadSecret = LoadSecret
 var deleteSecret = DeleteSecret

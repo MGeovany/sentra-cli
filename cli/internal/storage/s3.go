@@ -47,7 +47,6 @@ func ResolveS3() (cfg S3Config, client *minio.Client, enabled bool, err error) {
 	if c, ok, err := LoadConfig(); err != nil {
 		return S3Config{}, nil, false, err
 	} else if ok {
-		enabled = true
 		cfg, err = s3ConfigFromStored(c)
 		if err != nil {
 			return S3Config{}, nil, false, err
@@ -196,17 +195,4 @@ func GetObject(ctx context.Context, client *minio.Client, cfg S3Config, key stri
 		return nil, fmt.Errorf("empty object: %s", key)
 	}
 	return b, nil
-}
-
-func envBool(k string) bool {
-	v := strings.TrimSpace(os.Getenv(k))
-	if v == "" {
-		return false
-	}
-	switch strings.ToLower(v) {
-	case "1", "true", "yes", "y":
-		return true
-	default:
-		return false
-	}
 }
