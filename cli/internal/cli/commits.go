@@ -29,7 +29,7 @@ func runCommits(args []string) error {
 	if len(args) != 1 {
 		return errors.New("usage: sentra commits <project>")
 	}
-	
+
 	root := projectRootFromPath(args[0])
 	root = strings.TrimSpace(root)
 	if root == "" {
