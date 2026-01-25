@@ -103,7 +103,7 @@ func runExport(args []string) error {
 		cipherName := strings.TrimSpace(f.Cipher)
 		blobB64 := strings.TrimSpace(f.BlobB64)
 		if blobB64 == "" && strings.TrimSpace(f.StorageKey) != "" {
-			s3cfg, s3c, enabled, err := storage.ResolveS3()
+			s3cfg, _, enabled, err := storage.ResolveS3()
 			if err != nil {
 				return err
 			}
@@ -119,6 +119,12 @@ func runExport(args []string) error {
 			}
 			if strings.TrimSpace(f.StorageRegion) != "" {
 				s3cfg.Region = strings.TrimSpace(f.StorageRegion)
+			}
+			// Recreate S3 client after applying server-provided overrides
+			// since MinIO clients are bound to endpoint/region at construction.
+			s3c, err := storage.NewS3Client(s3cfg)
+			if err != nil {
+				return fmt.Errorf("s3 client failed (%s): %w", f.Path, err)
 			}
 			raw, err := storage.GetObject(context.Background(), s3c, s3cfg, strings.TrimSpace(f.StorageKey))
 			if err != nil {
