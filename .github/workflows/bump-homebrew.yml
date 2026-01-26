@@ -25,6 +25,9 @@ jobs:
             exit 1
           fi
 
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
           ver="${TAG#v}"
           echo "version=${ver}" >> "$GITHUB_OUTPUT"
 
@@ -48,7 +51,7 @@ jobs:
       - name: Update tap repo
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ steps.sums.outputs.tag }}
           VERSION: ${{ steps.sums.outputs.version }}
           SHA_DARWIN_ARM64: ${{ steps.sums.outputs.sha_darwin_arm64 }}
           SHA_DARWIN_AMD64: ${{ steps.sums.outputs.sha_darwin_amd64 }}
@@ -67,7 +70,7 @@ jobs:
           cd tap
           mkdir -p Formula
 
-          cat > Formula/sentra.rb <<'          SENTRA_FORMULA'
+          cat > Formula/sentra.rb <<'SENTRA_FORMULA'
           class Sentra < Formula
             desc "Sentra CLI"
             homepage "https://github.com/MGeovany/sentra-cli"
