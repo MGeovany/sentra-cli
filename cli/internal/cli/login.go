@@ -231,6 +231,7 @@ func runLogin() error {
 	}
 
 	// Persist server URL so users don't need to set env vars.
+	// Avoid persisting localhost/loopback unless explicitly configured.
 	{
 		cfg, _, err := auth.LoadConfig()
 		if err != nil {
@@ -244,30 +245,21 @@ func runLogin() error {
 			}
 		}
 		if serverURL, err := serverURLFromEnv(); err == nil {
-			cfg.ServerURL = serverURL
-			if err := auth.SaveConfig(cfg); err != nil {
-				return err
-			}
-		}
-	}
-
-	// Persist server URL so users don't need to set env vars.
-	{
-		cfg, _, err := auth.LoadConfig()
-		if err != nil {
-			return err
-		}
-		if cfg.MachineID == "" {
-			if cfg2, ensureErr := auth.EnsureConfig(); ensureErr == nil {
-				cfg = cfg2
+			if u, perr := url.Parse(serverURL); perr == nil {
+				// Don't persist loopback unless user explicitly set SENTRA_SERVER_URL.
+				if isLoopbackHost(u.Hostname()) && strings.TrimSpace(os.Getenv("SENTRA_SERVER_URL")) == "" {
+					// no-op
+				} else {
+					cfg.ServerURL = serverURL
+					if err := auth.SaveConfig(cfg); err != nil {
+						return err
+					}
+				}
 			} else {
-				return ensureErr
-			}
-		}
-		if serverURL, err := serverURLFromEnv(); err == nil {
-			cfg.ServerURL = serverURL
-			if err := auth.SaveConfig(cfg); err != nil {
-				return err
+				cfg.ServerURL = serverURL
+				if err := auth.SaveConfig(cfg); err != nil {
+					return err
+				}
 			}
 		}
 	}
