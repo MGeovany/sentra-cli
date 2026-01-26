@@ -87,9 +87,16 @@ func registerMachine(ctx context.Context, accessToken string) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	_, _ = io.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("machine registration failed")
+		msg := oneLine(string(respBody))
+		if msg == "" {
+			msg = strings.TrimSpace(http.StatusText(resp.StatusCode))
+		}
+		if isVerbose() {
+			return fmt.Errorf("machine registration failed: status=%d msg=%s", resp.StatusCode, msg)
+		}
+		return fmt.Errorf("machine registration failed: server returned %d (%s)", resp.StatusCode, msg)
 	}
 
 	return nil

@@ -21,6 +21,30 @@ import (
 	"github.com/minio/minio-go/v7"
 )
 
+func isVerbose() bool {
+	v := strings.TrimSpace(os.Getenv("SENTRA_VERBOSE"))
+	return v == "1" || strings.EqualFold(v, "true")
+}
+
+func oneLine(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	// Avoid log poisoning / ugly multiline errors.
+	s = strings.ReplaceAll(s, "\r", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\t", " ")
+	for strings.Contains(s, "  ") {
+		s = strings.ReplaceAll(s, "  ", " ")
+	}
+	const max = 220
+	if len(s) > max {
+		s = s[:max] + "..."
+	}
+	return s
+}
+
 func runPush() error {
 	sess, err := ensureRemoteSession()
 	if err != nil {
@@ -158,7 +182,7 @@ func runPush() error {
 				if err != nil {
 					return err
 				}
-				_, _ = io.ReadAll(resp.Body)
+				respBody, _ := io.ReadAll(resp.Body)
 				_ = resp.Body.Close()
 
 				if resp.StatusCode == http.StatusTooManyRequests {
@@ -173,7 +197,14 @@ func runPush() error {
 				}
 
 				if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-					return fmt.Errorf("push failed")
+					msg := oneLine(string(respBody))
+					if msg == "" {
+						msg = strings.TrimSpace(http.StatusText(resp.StatusCode))
+					}
+					if isVerbose() {
+						return fmt.Errorf("push failed: status=%d msg=%s", resp.StatusCode, msg)
+					}
+					return fmt.Errorf("push failed: server returned %d (%s)", resp.StatusCode, msg)
 				}
 
 				break
