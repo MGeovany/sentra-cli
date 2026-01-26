@@ -73,7 +73,7 @@ func runCommits(args []string) error {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("commits failed: status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return fmt.Errorf("failed to fetch commits")
 	}
 
 	var commits []remoteCommit

@@ -17,7 +17,7 @@ func ensureRemoteSession() (auth.Session, error) {
 	supabaseURL := strings.TrimSpace(os.Getenv("SUPABASE_URL"))
 	anonKey := strings.TrimSpace(os.Getenv("SUPABASE_ANON_KEY"))
 	if supabaseURL == "" || anonKey == "" {
-		return auth.Session{}, errors.New("missing SUPABASE_URL or SUPABASE_ANON_KEY")
+		return auth.Session{}, errors.New("authentication service not configured")
 	}
 
 	oauth := auth.SupabaseOAuth{SupabaseURL: supabaseURL, AnonKey: anonKey, Provider: "google"}

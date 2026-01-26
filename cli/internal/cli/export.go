@@ -79,7 +79,7 @@ func runExport(args []string) error {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("export failed: status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return fmt.Errorf("export failed")
 	}
 
 	var files []remoteExportFile
@@ -124,18 +124,18 @@ func runExport(args []string) error {
 			// since MinIO clients are bound to endpoint/region at construction.
 			s3c, err := storage.NewS3Client(s3cfg)
 			if err != nil {
-				return fmt.Errorf("s3 client failed (%s): %w", f.Path, err)
+				return fmt.Errorf("failed to connect to storage (%s)", f.Path)
 			}
 			raw, err := storage.GetObject(context.Background(), s3c, s3cfg, strings.TrimSpace(f.StorageKey))
 			if err != nil {
-				return fmt.Errorf("s3 download failed (%s): %w", f.Path, err)
+				return fmt.Errorf("failed to download from storage (%s)", f.Path)
 			}
 			blobB64 = base64.RawURLEncoding.EncodeToString(raw)
 		}
 
 		plain, err := auth.DecryptEnvBlob(cipherName, blobB64)
 		if err != nil {
-			return fmt.Errorf("cannot decrypt %s: %w", f.Path, err)
+			return fmt.Errorf("failed to decrypt file (%s)", f.Path)
 		}
 
 		rel := strings.TrimSpace(f.Path)
@@ -145,10 +145,10 @@ func runExport(args []string) error {
 		rel = filepath.Clean(rel)
 		rel = filepath.ToSlash(rel)
 		if rel == "." || rel == "" || strings.HasPrefix(rel, "../") {
-			return fmt.Errorf("unsafe file path from server: %q", f.Path)
+			return fmt.Errorf("invalid file path received from server")
 		}
 		if strings.HasPrefix(rel, "/") || strings.HasPrefix(rel, "\\") {
-			return fmt.Errorf("unsafe file path from server: %q", f.Path)
+			return fmt.Errorf("invalid file path received from server")
 		}
 
 		outPath := filepath.Join(baseDir, filepath.FromSlash(rel))

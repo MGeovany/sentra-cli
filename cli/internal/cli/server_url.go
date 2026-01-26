@@ -20,18 +20,18 @@ func serverURLFromEnv() (string, error) {
 
 	u, err := url.Parse(v)
 	if err != nil {
-		return "", fmt.Errorf("invalid SENTRA_SERVER_URL: %w", err)
+		return "", fmt.Errorf("invalid server URL: %w", err)
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return "", fmt.Errorf("invalid SENTRA_SERVER_URL scheme: %s", u.Scheme)
+		return "", fmt.Errorf("invalid server URL scheme: %s", u.Scheme)
 	}
 	host := u.Hostname()
 	if host == "" {
-		return "", fmt.Errorf("invalid SENTRA_SERVER_URL host")
+		return "", fmt.Errorf("invalid server URL host")
 	}
 
 	if u.Scheme == "http" && !isLoopbackHost(host) {
-		return "", fmt.Errorf("refusing insecure SENTRA_SERVER_URL (http without loopback host): %s", v)
+		return "", fmt.Errorf("insecure connection: HTTP is only allowed for localhost connections")
 	}
 
 	return strings.TrimRight(v, "/"), nil
