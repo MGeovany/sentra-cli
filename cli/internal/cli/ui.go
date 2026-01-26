@@ -67,24 +67,20 @@ func formatRecommendedLabel(label string, muted bool) string {
 }
 
 func infof(format string, args ...any) {
-	fmt.Fprintln(os.Stdout, c(ansiDim, fmt.Sprintf(format, args...)))
+	_, _ = fmt.Fprintln(os.Stdout, c(ansiDim, fmt.Sprintf(format, args...)))
 }
 
 func successf(format string, args ...any) {
-	fmt.Fprintln(os.Stdout, c(ansiGreen, fmt.Sprintf(format, args...)))
+	_, _ = fmt.Fprintln(os.Stdout, c(ansiGreen, fmt.Sprintf(format, args...)))
 }
 
 func warnf(format string, args ...any) {
-	fmt.Fprintln(os.Stdout, c(ansiYellow, fmt.Sprintf(format, args...)))
-}
-
-func errorf(format string, args ...any) {
-	fmt.Fprintln(os.Stderr, c(ansiRed, fmt.Sprintf(format, args...)))
+	_, _ = fmt.Fprintln(os.Stdout, c(ansiYellow, fmt.Sprintf(format, args...)))
 }
 
 func verbosef(format string, args ...any) {
 	if !isVerbose() {
 		return
 	}
-	fmt.Fprintln(os.Stdout, c(ansiDim, fmt.Sprintf(format, args...)))
+	_, _ = fmt.Fprintln(os.Stdout, c(ansiDim, fmt.Sprintf(format, args...)))
 }

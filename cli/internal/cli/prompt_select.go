@@ -75,23 +75,23 @@ func promptSelectArrows(options []string) (int, error) {
 
 	writeLine := func(s string) {
 		// Use CRLF to avoid terminals where LF doesn't reset column.
-		fmt.Fprint(os.Stdout, "\r"+s+"\r\n")
+		_, _ = fmt.Fprint(os.Stdout, "\r"+s+"\r\n")
 	}
 
 	// Hide cursor.
-	fmt.Fprint(os.Stdout, "\x1b[?25l")
-	defer fmt.Fprint(os.Stdout, "\x1b[?25h")
+	_, _ = fmt.Fprint(os.Stdout, "\x1b[?25l")
+	defer func() { _, _ = fmt.Fprint(os.Stdout, "\x1b[?25h") }()
 
 	sel := 0
 	// Print a blank line first for better separation
-	fmt.Fprint(os.Stdout, "\r\n")
+	_, _ = fmt.Fprint(os.Stdout, "\r\n")
 	// Save cursor at the start of the menu so we can redraw reliably.
 	// Prefer DEC save/restore (ESC7/ESC8); widely supported.
-	fmt.Fprint(os.Stdout, "\r\x1b7")
+	_, _ = fmt.Fprint(os.Stdout, "\r\x1b7")
 
 	redraw := func() {
 		// Restore cursor to the saved position, clear down, then print.
-		fmt.Fprint(os.Stdout, "\x1b8\r\x1b[J")
+		_, _ = fmt.Fprint(os.Stdout, "\x1b8\r\x1b[J")
 
 		width, _, werr := term.GetSize(fd)
 		if werr != nil || width <= 0 {

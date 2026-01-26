@@ -75,12 +75,12 @@ func promptBox(r *bufio.Reader, title string, hint string, defaultValue string) 
 	}
 
 	// up one line
-	fmt.Fprint(os.Stdout, "\x1b[1A")
+	_, _ = fmt.Fprint(os.Stdout, "\x1b[1A")
 	// clear line
-	fmt.Fprint(os.Stdout, "\r\x1b[2K")
-	fmt.Fprint(os.Stdout, c(ansiDim, inputLinePrefix)+shown+pad+c(ansiDim, inputLineSuffix))
+	_, _ = fmt.Fprint(os.Stdout, "\r\x1b[2K")
+	_, _ = fmt.Fprint(os.Stdout, c(ansiDim, inputLinePrefix)+shown+pad+c(ansiDim, inputLineSuffix))
 	// down one line
-	fmt.Fprint(os.Stdout, "\x1b[1B")
+	_, _ = fmt.Fprint(os.Stdout, "\x1b[1B")
 
 	fmt.Println(c(ansiDim, border))
 

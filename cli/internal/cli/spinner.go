@@ -45,7 +45,7 @@ func startSpinner(message string) *spinner {
 			select {
 			case <-s.stop:
 				// Clear line.
-				fmt.Fprint(os.Stdout, "\r\x1b[2K")
+				_, _ = fmt.Fprint(os.Stdout, "\r\x1b[2K")
 				return
 			case <-time.After(90 * time.Millisecond):
 				m, _ := s.msg.Load().(string)
@@ -54,7 +54,7 @@ func startSpinner(message string) *spinner {
 				}
 				frame := frames[i%len(frames)]
 				i++
-				fmt.Fprintf(os.Stdout, "\r%s", c(ansiDim, frame+" "+m))
+				_, _ = fmt.Fprintf(os.Stdout, "\r%s", c(ansiDim, frame+" "+m))
 			}
 		}
 	}()
