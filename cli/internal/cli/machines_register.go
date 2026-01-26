@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -29,7 +28,7 @@ func registerMachine(ctx context.Context, accessToken string) error {
 		return err
 	}
 	if strings.TrimSpace(cfg.MachineID) == "" {
-		return fmt.Errorf("missing machine_id")
+		return fmt.Errorf("machine not configured; please run: sentra login")
 	}
 
 	name, _ := os.Hostname()
@@ -42,8 +41,6 @@ func registerMachine(ctx context.Context, accessToken string) error {
 	if err != nil {
 		return err
 	}
-
-	log.Printf("serverURL: %s", serverURL)
 
 	endpoint := serverURL + "/machines/register"
 
@@ -90,9 +87,9 @@ func registerMachine(ctx context.Context, accessToken string) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	respBody, _ := io.ReadAll(resp.Body)
+	_, _ = io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("machine register failed: status=%d body=%s", resp.StatusCode, string(respBody))
+		return fmt.Errorf("machine registration failed")
 	}
 
 	return nil

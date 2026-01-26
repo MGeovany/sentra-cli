@@ -48,7 +48,7 @@ func runProjects() error {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("projects failed: status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return fmt.Errorf("failed to fetch projects")
 	}
 
 	var projects []remoteProject

@@ -24,7 +24,7 @@ func runLogin() error {
 	supabaseURL := strings.TrimSpace(os.Getenv("SUPABASE_URL"))
 	anonKey := strings.TrimSpace(os.Getenv("SUPABASE_ANON_KEY"))
 	if supabaseURL == "" || anonKey == "" {
-		return errors.New("missing SUPABASE_URL or SUPABASE_ANON_KEY")
+		return errors.New("authentication service not configured")
 	}
 
 	verifier, err := auth.NewCodeVerifier()
@@ -38,7 +38,7 @@ func runLogin() error {
 	if v := strings.TrimSpace(os.Getenv("SENTRA_AUTH_PORT")); v != "" {
 		p, err := strconv.Atoi(v)
 		if err != nil {
-			return fmt.Errorf("invalid SENTRA_AUTH_PORT: %w", err)
+			return fmt.Errorf("invalid auth port: %w", err)
 		}
 		port = p
 	}
@@ -123,9 +123,7 @@ func runLogin() error {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			if errDesc != "" || errName != "" || errCode != "" {
 				_, _ = fmt.Fprintf(w,
-					"Login failed.\n\nSupabase returned:\n- error: %s\n- error_code: %s\n- error_description: %s\n\nFix: verify the Google provider settings in Supabase and the Google OAuth client redirect URL.\n",
-					errName,
-					errCode,
+					"Login failed.\n\nAuthentication error: %s\n\nPlease try again or contact support if the problem persists.\n",
 					errDesc,
 				)
 				select {
@@ -133,9 +131,9 @@ func runLogin() error {
 				default:
 				}
 			} else {
-				_, _ = w.Write([]byte("Login failed: missing oauth code.\n"))
+				_, _ = w.Write([]byte("Login failed: authentication incomplete.\n"))
 				select {
-				case errCh <- errors.New("missing oauth code"):
+				case errCh <- errors.New("authentication incomplete"):
 				default:
 				}
 			}
@@ -181,7 +179,7 @@ func runLogin() error {
 
 	_ = srv.Shutdown(context.Background())
 
-	// Supabase returns URL-encoded code sometimes; normalize.
+	// OAuth provider returns URL-encoded code sometimes; normalize.
 	if decoded, decodeErr := url.QueryUnescape(authCode); decodeErr == nil {
 		authCode = decoded
 	}
@@ -265,8 +263,11 @@ func runLogin() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		if err := registerMachine(ctx, tr.AccessToken); err != nil {
-			fmt.Printf("Warning: could not register user/machine with remote: %v\n", err)
-			fmt.Println("Hint: check SERVER_PORT and ensure the server has SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.")
+			// Keep login output clean; registration is optional and can be diagnosed via `sentra doctor`.
+			if v := strings.TrimSpace(os.Getenv("SENTRA_VERBOSE")); v == "1" || strings.EqualFold(v, "true") {
+				fmt.Printf("Note: remote machine registration skipped: %v\n", err)
+				fmt.Println("Hint: run `sentra doctor` to diagnose server connectivity issues.")
+			}
 		}
 	}
 

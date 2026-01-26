@@ -28,7 +28,7 @@ func buildPushRequestV1(ctx context.Context, scanRoot, machineID, machineName st
 		pathsByRoot[root] = append(pathsByRoot[root], p)
 	}
 	if len(pathsByRoot) == 0 {
-		return nil, fmt.Errorf("cannot determine project.root")
+		return nil, fmt.Errorf("cannot determine project root")
 	}
 
 	roots := make([]string, 0, len(pathsByRoot))
@@ -67,7 +67,7 @@ func buildPushRequestV1(ctx context.Context, scanRoot, machineID, machineName st
 			var st *pushStorageV1
 			if byos {
 				if s3 == nil {
-					return nil, fmt.Errorf("byos enabled but s3 client is nil")
+					return nil, fmt.Errorf("storage client not available")
 				}
 				raw, err := base64.RawURLEncoding.DecodeString(strings.TrimSpace(blobB64))
 				if err != nil {

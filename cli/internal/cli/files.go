@@ -66,7 +66,7 @@ func runFiles(args []string) error {
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("files failed: status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return fmt.Errorf("failed to fetch files")
 	}
 
 	var files []remoteFile

@@ -61,7 +61,7 @@ func runPush() error {
 	}
 	machineID := strings.TrimSpace(cfg.MachineID)
 	if machineID == "" {
-		return fmt.Errorf("missing machine_id")
+		return fmt.Errorf("machine not registered; please run: sentra login")
 	}
 
 	name, _ := os.Hostname()
@@ -93,7 +93,7 @@ func runPush() error {
 			}
 		}
 		if userID == "" {
-			return fmt.Errorf("missing user id; please run: sentra login")
+			return fmt.Errorf("not logged in; please run: sentra login")
 		}
 
 		storageMode := strings.TrimSpace(cfg.StorageMode)
@@ -158,7 +158,7 @@ func runPush() error {
 				if err != nil {
 					return err
 				}
-				respBody, _ := io.ReadAll(resp.Body)
+				_, _ = io.ReadAll(resp.Body)
 				_ = resp.Body.Close()
 
 				if resp.StatusCode == http.StatusTooManyRequests {
@@ -173,7 +173,7 @@ func runPush() error {
 				}
 
 				if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-					return fmt.Errorf("push failed: status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+					return fmt.Errorf("push failed")
 				}
 
 				break
