@@ -43,7 +43,7 @@ func main() {
 		if err != nil {
 			log.Printf("supabase db disabled (check SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)")
 		} else {
-			machines = repo.NewSupabaseMachineStore(client, cfg.SupabaseMachinesTable)
+			machines = repo.NewSupabaseMachineStore(client, "")
 			idem = repo.NewSupabaseIdempotencyStore(client, "")
 			projects = repo.NewSupabaseProjectStore(client, "")
 			commits = repo.NewSupabaseCommitStore(client, "")

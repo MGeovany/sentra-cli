@@ -10,7 +10,6 @@ type Config struct {
 
 	SupabaseURL            string
 	SupabaseServiceRoleKey string
-	SupabaseMachinesTable  string
 }
 
 func FromEnv() Config {
@@ -33,17 +32,11 @@ func FromEnv() Config {
 		}
 	}
 
-	machinesTable := os.Getenv("SUPABASE_MACHINES_TABLE")
-	if machinesTable == "" {
-		machinesTable = "machines"
-	}
-
 	return Config{
 		Port: port,
 		Host: host,
 
 		SupabaseURL:            os.Getenv("SUPABASE_URL"),
 		SupabaseServiceRoleKey: os.Getenv("SUPABASE_SERVICE_ROLE_KEY"),
-		SupabaseMachinesTable:  machinesTable,
 	}
 }
