@@ -26,6 +26,7 @@ func runSync(args []string) error {
 		return errors.New("usage: sentra sync")
 	}
 
+	verbosef("Starting sync operation...")
 	sess, err := ensureRemoteSession()
 	if err != nil {
 		return err
@@ -33,25 +34,34 @@ func runSync(args []string) error {
 	if strings.TrimSpace(sess.AccessToken) == "" {
 		return errors.New("not logged in (run: sentra login)")
 	}
+	verbosef("Session loaded: user authenticated")
 
 	scanRoot, err := resolveScanRoot()
 	if err != nil {
 		return err
 	}
+	verbosef("Scan root: %s", scanRoot)
 
 	serverURL, err := serverURLFromEnv()
 	if err != nil {
 		return err
 	}
+	verbosef("Server URL: %s", serverURL)
 
+	sp := startSpinner("Fetching projects from remote...")
 	projects, err := fetchRemoteProjects(serverURL, sess.AccessToken)
 	if err != nil {
+		sp.StopInfo("")
 		return err
 	}
 	if len(projects) == 0 {
+		sp.StopSuccess("✔ 0 projects")
 		fmt.Println("✔ 0 projects")
+		verbosef("No projects found on remote")
 		return nil
 	}
+	sp.StopSuccess(fmt.Sprintf("✔ %d project(s) found", len(projects)))
+	verbosef("Found %d remote project(s)", len(projects))
 
 	// Stable order.
 	sort.Slice(projects, func(i, j int) bool {
@@ -61,31 +71,42 @@ func runSync(args []string) error {
 	written := 0
 	scanned := 0
 	skippedMissing := 0
-	for _, p := range projects {
+	sp2 := startSpinner("Syncing projects...")
+	for i, p := range projects {
 		root := strings.TrimSpace(p.RootPath)
 		if root == "" {
 			continue
 		}
+		sp2.Set(fmt.Sprintf("Syncing %s (%d/%d)...", root, i+1, len(projects)))
 		localRepo := filepath.Join(scanRoot, filepath.FromSlash(root))
+		verbosef("Checking local repo: %s", localRepo)
 		if !isDir(localRepo) {
+			verbosef("Skipping %s: local directory not found", root)
 			skippedMissing++
 			continue
 		}
 
+		verbosef("Fetching files for project: %s", root)
 		files, err := fetchRemoteExport(serverURL, sess.AccessToken, root)
 		if err != nil {
+			sp2.StopInfo("")
 			return err
 		}
 		if len(files) == 0 {
+			verbosef("No files found for project: %s", root)
 			continue
 		}
+		verbosef("Found %d file(s) for project: %s", len(files), root)
 
 		scanned++
 		for _, f := range files {
+			verbosef("Processing file: %s (size: %d bytes, cipher: %s)", f.Path, f.Size, f.Cipher)
 			plain, err := decryptRemoteExportFile(f)
 			if err != nil {
+				sp2.StopInfo("")
 				return err
 			}
+			verbosef("Decrypted file: %s (%d bytes)", f.Path, len(plain))
 
 			// Server returns full file path (e.g. "root/.env"); write into scanRoot.
 			rel := filepath.ToSlash(strings.TrimSpace(f.Path))
@@ -103,20 +124,25 @@ func runSync(args []string) error {
 			}
 
 			outPath := filepath.Join(scanRoot, filepath.FromSlash(rel))
+			verbosef("Writing file to: %s", outPath)
 			if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+				sp2.StopInfo("")
 				return err
 			}
 			if err := os.WriteFile(outPath, plain, 0o600); err != nil {
+				sp2.StopInfo("")
 				return err
 			}
 			written++
+			verbosef("Successfully wrote file: %s", outPath)
 		}
 	}
-
-	fmt.Printf("✔ synced %d env file(s) across %d project(s)\n", written, scanned)
+	sp2.StopSuccess(fmt.Sprintf("✔ synced %d env file(s) across %d project(s)", written, scanned))
 	if skippedMissing > 0 {
-		fmt.Printf("⚠ %d project(s) missing locally under %s\n", skippedMissing, scanRoot)
+		warnf("⚠ %d project(s) missing locally under %s", skippedMissing, scanRoot)
+		verbosef("Missing projects were skipped (not found in scan root)")
 	}
+	verbosef("Sync completed: %d file(s) written, %d project(s) synced, %d skipped", written, scanned, skippedMissing)
 	return nil
 }
 

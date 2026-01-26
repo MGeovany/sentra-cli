@@ -114,23 +114,23 @@ func runLogList(mode string) error {
 
 	// newest first
 	for i := len(filtered) - 1; i >= 0; i-- {
-		c := filtered[i]
-		fmt.Printf("commit %s (%s)\n", shortCommitID(c), c.ID)
+		cm := filtered[i]
+		fmt.Println(c(ansiCyan, "commit ") + c(ansiBoldCyan, shortCommitID(cm)) + c(ansiDim, " ("+cm.ID+")"))
 
-		date := formatCommitDate(c.CreatedAt)
+		date := formatCommitDate(cm.CreatedAt)
 		if date != "" {
-			fmt.Printf("Date: %s\n", date)
+			fmt.Println(c(ansiDim, "Date: ") + date)
 		}
-		if strings.TrimSpace(c.PushedAt) != "" {
-			fmt.Printf("Pushed: %s\n", strings.TrimSpace(c.PushedAt))
+		if strings.TrimSpace(cm.PushedAt) != "" {
+			fmt.Println(c(ansiDim, "Pushed: ") + strings.TrimSpace(cm.PushedAt))
 		}
-		fmt.Printf("Files: %d\n", len(c.Files))
+		fmt.Println(c(ansiDim, "Files: ") + c(ansiBoldCyan, fmt.Sprintf("%d", len(cm.Files))))
 
-		msg := strings.TrimSpace(c.Message)
+		msg := strings.TrimSpace(cm.Message)
 		if msg == "" {
 			msg = "(no message)"
 		}
-		fmt.Println("Message:")
+		fmt.Println(c(ansiDim, "Message:"))
 		fmt.Printf("  %s\n", msg)
 		if i != 0 {
 			fmt.Println()

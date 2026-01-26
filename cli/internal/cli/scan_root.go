@@ -53,18 +53,13 @@ func promptScanRoot(defaultRoot string) (string, error) {
 
 	r := bufio.NewReader(os.Stdin)
 	for attempt := 0; attempt < 3; attempt++ {
-		fmt.Printf("Scan root [%s]: ", defaultRoot)
-		line, err := r.ReadString('\n')
-		if err != nil && !errors.Is(err, os.ErrClosed) {
+		v, err := promptBox(r, "Where are your repos?", "Enter the folder that contains your git repos (e.g. ~/dev)", defaultRoot)
+		if err != nil {
 			// If stdin isn't readable (non-interactive), fall back to default.
 			if isDir(defaultRoot) {
 				return defaultRoot, nil
 			}
 			return "", err
-		}
-		v := strings.TrimSpace(line)
-		if v == "" {
-			v = defaultRoot
 		}
 		v = expandUserHome(v)
 		if !filepath.IsAbs(v) {
@@ -77,7 +72,7 @@ func promptScanRoot(defaultRoot string) (string, error) {
 		if isDir(v) {
 			return v, nil
 		}
-		fmt.Printf("Invalid directory: %s\n", v)
+		fmt.Printf("%s\n", c(ansiYellow, "Invalid directory: ")+v)
 	}
 	return "", errors.New("invalid scan root")
 }

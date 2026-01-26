@@ -47,6 +47,8 @@ func Execute(args []string) error {
 			return errors.New("sentra scan does not accept flags/args yet")
 		}
 		return runScan()
+	case "overview":
+		return runOverview(args[1:])
 	case "add":
 		return runAdd(args[1:])
 	case "status":
@@ -78,26 +80,35 @@ func Execute(args []string) error {
 }
 
 func usageError() error {
-	return errors.New("usage: sentra login | sentra storage setup|status|test|reset | sentra projects | sentra history | sentra commits <project> | sentra files <project> [--at <commit>] | sentra export <project> [--at <commit>] | sentra who | sentra scan | sentra add | sentra status | sentra commit | sentra sync | sentra log [all|pending|pushed|rm <id>|clear|prune <id|all>|verify] | sentra push | sentra wipe | sentra doctor")
+	return errors.New("usage: sentra login | sentra storage setup|status|test|reset | sentra projects | sentra history | sentra commits <project> | sentra files <project> [--at <commit>] | sentra export <project> [--at <commit>] | sentra who | sentra scan | sentra overview | sentra add | sentra status | sentra commit | sentra sync | sentra log [all|pending|pushed|rm <id>|clear|prune <id|all>|verify] | sentra push | sentra wipe | sentra doctor")
 }
 
 func runScan() error {
+	verbosef("Starting scan operation...")
 	scanRoot, err := resolveScanRoot()
 	if err != nil {
 		return err
 	}
+	verbosef("Scan root: %s", scanRoot)
+
+	sp := startSpinner(fmt.Sprintf("Scanning %s...", scanRoot))
 
 	projects, err := scanner.Scan(scanRoot)
 	if err != nil {
+		sp.StopInfo("")
 		return err
 	}
 
 	envCount := 0
 	for _, p := range projects {
 		envCount += len(p.EnvFiles)
+		if isVerbose() {
+			verbosef("Project: %s (%d env file(s))", p.RootPath, len(p.EnvFiles))
+		}
 	}
 
-	fmt.Printf("✔ %d projects found\n", len(projects))
+	sp.StopSuccess(fmt.Sprintf("✔ %d projects found", len(projects)))
+	verbosef("Scan completed: %d project(s), %d env file(s) total", len(projects), envCount)
 
 	projectRoots := make([]string, 0, len(projects))
 	for _, project := range projects {
@@ -114,7 +125,8 @@ func runScan() error {
 	}
 
 	fmt.Println()
-	fmt.Printf("✔ %d env files detected\n\n", envCount)
+	successf("✔ %d env files detected", envCount)
+	fmt.Println()
 
 	var lines []string
 	for _, project := range projects {

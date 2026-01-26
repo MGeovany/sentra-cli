@@ -43,6 +43,14 @@ Usage:
 
 - `sentra status`
 
+### `sentra overview`
+
+Shows a per-project card view with useful metadata (env count, staged, changed, latest modified).
+
+Usage:
+
+- `sentra overview`
+
 ### `sentra sync`
 
 Downloads the latest env files from the remote and writes them into local repos under the configured scan root.

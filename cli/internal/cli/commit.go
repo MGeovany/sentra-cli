@@ -10,15 +10,18 @@ import (
 )
 
 func runCommit(args []string) error {
+	verbosef("Starting commit operation...")
 	message, err := parseCommitMessage(args)
 	if err != nil {
 		return err
 	}
+	verbosef("Commit message: %s", message)
 
 	indexPath, err := index.DefaultPath()
 	if err != nil {
 		return err
 	}
+	verbosef("Index path: %s", indexPath)
 
 	idx, ok, err := index.Load(indexPath)
 	if err != nil {
@@ -27,18 +30,31 @@ func runCommit(args []string) error {
 	if !ok || len(idx.Staged) == 0 {
 		return errors.New("nothing to commit (no staged env files)")
 	}
+	verbosef("Found %d staged file(s)", len(idx.Staged))
+	for path, hash := range idx.Staged {
+		verbosef("  - %s (hash: %s)", path, hash)
+	}
 
-	c := commit.New(message, idx.Staged)
-	if _, err := commit.Save(c); err != nil {
+	cm := commit.New(message, idx.Staged)
+	verbosef("Created commit: %s", cm.ID)
+	if _, err := commit.Save(cm); err != nil {
 		return err
 	}
+	verbosef("Commit saved to local storage")
 
 	idx.Staged = map[string]string{}
 	if err := index.Save(indexPath, idx); err != nil {
 		return err
 	}
+	verbosef("Index cleared and saved")
 
-	fmt.Printf("✔ committed %s\n", c.ID)
+	// Keep this one a bit more celebratory.
+	shortID := cm.ID
+	if len(shortID) > 8 {
+		shortID = shortID[:8]
+	}
+	fmt.Println(c(ansiGreen, "✔ committed ") + c(ansiBoldCyan, shortID))
+	verbosef("Commit %s created with %d file(s)", cm.ID, len(cm.Files))
 	return nil
 }
 
