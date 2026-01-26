@@ -29,8 +29,7 @@ func serverURLFromEnv() (string, error) {
 		if saved := strings.TrimSpace(cfg.ServerURL); saved != "" {
 			// Safety: never get stuck on a saved localhost URL.
 			if u, perr := url.Parse(saved); perr == nil {
-				if isLoopbackHost(u.Hostname()) && strings.TrimSpace(os.Getenv("SENTRA_ALLOW_SAVED_LOOPBACK")) == "" {
-					// Best-effort: clear it so future commands fall back to hosted.
+				if isLoopbackHost(u.Hostname()) {
 					cfg.ServerURL = ""
 					_ = auth.SaveConfig(cfg)
 				} else {

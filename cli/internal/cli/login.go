@@ -231,7 +231,7 @@ func runLogin() error {
 	}
 
 	// Persist server URL so users don't need to set env vars.
-	// Avoid persisting localhost/loopback unless explicitly configured.
+	// Never persist localhost/loopback (it breaks end-users).
 	{
 		cfg, _, err := auth.LoadConfig()
 		if err != nil {
@@ -246,20 +246,13 @@ func runLogin() error {
 		}
 		if serverURL, err := serverURLFromEnv(); err == nil {
 			if u, perr := url.Parse(serverURL); perr == nil {
-				// Don't persist loopback unless user explicitly set SENTRA_SERVER_URL.
-				if isLoopbackHost(u.Hostname()) && strings.TrimSpace(os.Getenv("SENTRA_SERVER_URL")) == "" {
-					// no-op
-				} else {
-					cfg.ServerURL = serverURL
-					if err := auth.SaveConfig(cfg); err != nil {
-						return err
-					}
+				if isLoopbackHost(u.Hostname()) {
+					return nil
 				}
-			} else {
-				cfg.ServerURL = serverURL
-				if err := auth.SaveConfig(cfg); err != nil {
-					return err
-				}
+			}
+			cfg.ServerURL = serverURL
+			if err := auth.SaveConfig(cfg); err != nil {
+				return err
 			}
 		}
 	}
